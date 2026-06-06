@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mis Gastos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface2: #EEEBE4;
+    --text: #1A1916;
+    --text2: #6B6860;
+    --text3: #A8A59E;
+    --accent: #185FA5;
+    --accent-light: #E6F1FB;
+    --danger: #A32D2D;
+    --danger-light: #FCEBEB;
+    --success: #3B6D11;
+    --success-light: #EAF3DE;
+    --warning: #BA7517;
+    --warning-light: #FAEEDA;
+    --border: rgba(0,0,0,0.08);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    padding-bottom: 90px;
+  }
+
+  .header {
+    background: var(--surface);
+    padding: 20px 20px 0;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .app-title {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+  }
+
+  .month-label {
+    font-size: 13px;
+    color: var(--text2);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text3);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .metric {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 14px;
+    border: 1px solid var(--border);
+  }
+
+  .metric-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-size: 20px;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: -0.5px;
+  }
+
+  .metric-value.danger { color: var(--danger); }
+  .metric-value.success { color: var(--success); }
+  .metric-value.warning { color: var(--warning); }
+  .metric-value.accent { color: var(--accent); }
+
+  .metric-sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 2px;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .chart-wrap { position: relative; height: 200px; }
+
+  .cat-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cat-row:last-child { border-bottom: none; }
+
+  .cat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .cat-name { flex: 1; font-size: 14px; }
+
+  .cat-bar-wrap {
+    width: 80px;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .cat-bar { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+  .cat-val {
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text2);
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .progress-wrap {
+    background: var(--surface2);
+    border-radius: 6px;
+    height: 8px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s;
+  }
+
+  .form-group { margin-bottom: 14px; }
+
+  .form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.1);
+  }
+
+  .btn-save {
+    width: 100%;
+    padding: 15px;
+    background: var(--accent);
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-top: 8px;
+  }
+
+  .btn-save:active { opacity: 0.85; transform: scale(0.98); }
+  .btn-save:disabled { opacity: 0.5; }
+
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 20;
+  }
+
+  .nav-btn {
+    flex: 1;
+    padding: 12px 0 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: color 0.15s;
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 500;
+  }
+
+  .nav-btn.active { color: var(--accent); }
+
+  .nav-icon {
+    font-size: 22px;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .txn-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .txn-item:last-child { border-bottom: none; }
+
+  .txn-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .txn-info { flex: 1; min-width: 0; }
+
+  .txn-name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .txn-meta { font-size: 12px; color: var(--text3); }
+
+  .txn-val {
+    font-size: 14px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    color: var(--danger);
+    flex-shrink: 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text3);
+    font-size: 14px;
+  }
+
+  .savings-big {
+    text-align: center;
+    padding: 20px 0 10px;
+  }
+
+  .savings-number {
+    font-size: 36px;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: -1px;
+  }
+
+  .savings-label {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <span class="app-title">Mis Gastos</span>
+    <span class="month-label" id="currentMonth"></span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showPage('dashboard')">Dashboard</div>
+    <div class="tab" onclick="showPage('agregar')">Agregar</div>
+    <div class="tab" onclick="showPage('historial')">Historial</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+
+  <div style="height:16px"></div>
+
+  <div class="metrics-grid">
+    <div class="metric">
+      <div class="metric-label">Gastado este mes</div>
+      <div class="metric-value danger" id="m-total">$0</div>
+      <div class="metric-sub" id="m-txns">0 transacciones</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Presupuesto disponible</div>
+      <div class="metric-value" id="m-disponible" style="color:var(--text)">$0</div>
+      <div class="metric-sub">de $3.500.000</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Promedio diario</div>
+      <div class="metric-value warning" id="m-daily">$0</div>
+      <div class="metric-sub" id="m-projected"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Ahorro estimado</div>
+      <div class="metric-value" id="m-ahorro" style="color:var(--text)">$0</div>
+      <div class="metric-sub">meta: $2.000.000</div>
+    </div>
+  </div>
+
+  <!-- Progreso -->
+  <div class="card">
+    <div class="card-title">Progreso del mes</div>
+    <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--text2); margin-bottom:6px;">
+      <span id="prog-label">0% del presupuesto</span>
+      <span id="prog-days"></span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="prog-bar" style="width:0%; background:var(--success)"></div>
+    </div>
+  </div>
+
+  <!-- Gráfica por día -->
+  <div class="card">
+    <div class="card-title">Gasto por día</div>
+    <div class="chart-wrap">
+      <canvas id="dayChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Gasto por categoría -->
+  <div class="card">
+    <div class="card-title">Por categoría</div>
+    <div id="cat-list"></div>
+  </div>
+
+</div>
+
+<!-- AGREGAR GASTO -->
+<div class="page" id="page-agregar">
+  <div style="height:16px"></div>
+  <div class="card">
+    <div class="card-title">Nuevo gasto</div>
+
+    <div class="form-group">
+      <label class="form-label">Fecha</label>
+      <input type="date" id="f-fecha">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      <input type="text" id="f-item" placeholder="Ej: Almuerzo, Uber, Rappi...">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Categoría</label>
+      <select id="f-tipo">
+        <option value="">Selecciona una categoría</option>
+        <option value="Fijos">Fijos (arriendo, gym, suscripciones)</option>
+        <option value="Alimentación">Alimentación</option>
+        <option value="Transporte">Transporte</option>
+        <option value="Salidas">Salidas y ocio</option>
+        <option value="Imprevistos">Imprevistos</option>
+        <option value="Ahorro">Ahorro</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Valor (COP)</label>
+      <input type="number" id="f-valor" placeholder="0" inputmode="numeric">
+    </div>
+
+    <button class="btn-save" onclick="guardarGasto()" id="btn-guardar">Guardar gasto</button>
+  </div>
+</div>
+
+<!-- HISTORIAL -->
+<div class="page" id="page-historial">
+  <div style="height:16px"></div>
+  <div class="card">
+    <div class="card-title">Últimas transacciones</div>
+    <div id="txn-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyI0edklWC0--Q8RSVqBtDj7GEOAtZkwaRCCfpG0gqj2uKCB-X-_9zjLTBFx584kQos/exec';
+const PRESUPUESTO = 3500000;
+const META_AHORRO = 2000000;
+const INGRESO_NETO = 5500000;
+
+const CAT_CONFIG = {
+  'Fijos':        { color: '#185FA5', icon: '🏠' },
+  'Alimentación': { color: '#3B6D11', icon: '🍽️' },
+  'Transporte':   { color: '#888780', icon: '🚌' },
+  'Salidas':      { color: '#D85A30', icon: '🎉' },
+  'Imprevistos':  { color: '#BA7517', icon: '⚡' },
+  'Ahorro':       { color: '#185FA5', icon: '💰' },
+};
+
+let gastos = [];
+let dayChartInstance = null;
+
+function fmt(n) {
+  return '$' + Math.round(n).toLocaleString('es-CO');
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const tabs = document.querySelectorAll('.tab');
+  const idx = ['dashboard','agregar','historial'].indexOf(name);
+  if (idx >= 0) tabs[idx].classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'historial') renderHistorial();
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function parseDate(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m1) return new Date(+m1[3], +m1[2]-1, +m1[1]);
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+async function cargarDatos() {
+  try {
+    const res = await fetch(API_URL);
+    const raw = await res.json();
+    gastos = [];
+    for (let i = 1; i < raw.length; i++) {
+      const [fecha, item, tipo, valor] = raw[i];
+      if (!fecha || !valor) continue;
+      const d = parseDate(fecha);
+      if (!d) continue;
+      gastos.push({
+        fecha: fecha,
+        dateObj: d,
+        item: String(item),
+        tipo: String(tipo),
+        valor: parseFloat(String(valor).replace(/[^0-9.,]/g,'').replace(',','.')) || 0
+      });
+    }
+    renderDashboard();
+    renderHistorial();
+  } catch(e) {
+    showToast('Error al cargar datos');
+  }
+}
+
+function getThisMonthGastos() {
+  const now = new Date();
+  const mes = now.getMonth();
+  const anio = now.getFullYear();
+  return gastos.filter(g => {
+    return g.dateObj && g.dateObj.getMonth() === mes && g.dateObj.getFullYear() === anio && g.tipo !== 'Ahorro';
+  });
+}
+
+function renderDashboard() {
+  const mg = getThisMonthGastos();
+  const total = mg.reduce((s, g) => s + g.valor, 0);
+  const now = new Date();
+  const diasMes = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const diaActual = now.getDate();
+  const promDiario = diaActual > 0 ? total / diaActual : 0;
+  const proyectado = promDiario * diasMes;
+  const disponible = PRESUPUESTO - total;
+  const ahorroEst = INGRESO_NETO - total - 1280400;
+  const pct = Math.min(100, Math.round((total / PRESUPUESTO) * 100));
+
+  document.getElementById('m-total').textContent = fmt(total);
+  document.getElementById('m-txns').textContent = mg.length + ' transacciones';
+
+  const dispEl = document.getElementById('m-disponible');
+  dispEl.textContent = fmt(disponible);
+  dispEl.style.color = disponible < 0 ? 'var(--danger)' : disponible < 500000 ? 'var(--warning)' : 'var(--success)';
+
+  document.getElementById('m-daily').textContent = fmt(promDiario);
+  document.getElementById('m-projected').textContent = 'proyección: ' + fmt(proyectado);
+
+  const ahorroEl = document.getElementById('m-ahorro');
+  ahorroEl.textContent = fmt(Math.max(0, ahorroEst));
+  ahorroEl.style.color = ahorroEst >= META_AHORRO ? 'var(--success)' : ahorroEst > 0 ? 'var(--warning)' : 'var(--danger)';
+
+  const bar = document.getElementById('prog-bar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)';
+  document.getElementById('prog-label').textContent = pct + '% del presupuesto';
+  document.getElementById('prog-days').textContent = 'Día ' + diaActual + ' de ' + diasMes;
+
+  renderDayChart(mg);
+  renderCatList(mg, total);
+}
+
+function renderDayChart(mg) {
+  const now = new Date();
+  const diasMes = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const labels = [];
+  const data = [];
+  const byDay = {};
+  mg.forEach(g => {
+    const key = g.dateObj.getDate();
+    byDay[key] = (byDay[key] || 0) + g.valor;
+  });
+  for (let i = 1; i <= now.getDate(); i++) {
+    labels.push(i);
+    data.push(byDay[i] || 0);
+  }
+
+  const colors = data.map(v => v > 500000 ? '#A32D2D' : v > 200000 ? '#BA7517' : '#185FA5');
+
+  if (dayChartInstance) dayChartInstance.destroy();
+  const ctx = document.getElementById('dayChart').getContext('2d');
+  dayChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderCatList(mg, total) {
+  const byCat = {};
+  mg.forEach(g => { byCat[g.tipo] = (byCat[g.tipo] || 0) + g.valor; });
+  const sorted = Object.entries(byCat).sort((a,b) => b[1]-a[1]);
+  const max = sorted[0] ? sorted[0][1] : 1;
+  const el = document.getElementById('cat-list');
+  if (!sorted.length) { el.innerHTML = '<div class="empty-state">Sin gastos este mes</div>'; return; }
+  el.innerHTML = sorted.map(([cat, val]) => {
+    const cfg = CAT_CONFIG[cat] || { color: '#888', icon: '•' };
+    const pct = Math.round((val/max)*100);
+    return `<div class="cat-row">
+      <div class="cat-dot" style="background:${cfg.color}"></div>
+      <div class="cat-name">${cfg.icon} ${cat}</div>
+      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%; background:${cfg.color}"></div></div>
+      <div class="cat-val">${fmt(val)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderHistorial() {
+  const el = document.getElementById('txn-list');
+  const recientes = [...gastos].reverse().slice(0, 50);
+  if (!recientes.length) { el.innerHTML = '<div class="empty-state">Sin transacciones registradas</div>'; return; }
+  el.innerHTML = recientes.map(g => {
+    const cfg = CAT_CONFIG[g.tipo] || { color: '#888', icon: '•' };
+    const fechaStr = g.dateObj ? g.dateObj.toLocaleDateString('es-CO', { day:'numeric', month:'short' }) : g.fecha;
+    return `<div class="txn-item">
+      <div class="txn-icon" style="background:${cfg.color}22; color:${cfg.color}">${cfg.icon}</div>
+      <div class="txn-info">
+        <div class="txn-name">${g.item}</div>
+        <div class="txn-meta">${fechaStr} · ${g.tipo}</div>
+      </div>
+      <div class="txn-val">${fmt(g.valor)}</div>
+    </div>`;
+  }).join('');
+}
+
+async function guardarGasto() {
+  const fecha = document.getElementById('f-fecha').value;
+  const item = document.getElementById('f-item').value.trim();
+  const tipo = document.getElementById('f-tipo').value;
+  const valor = parseFloat(document.getElementById('f-valor').value);
+
+  if (!fecha || !item || !tipo || !valor || valor <= 0) {
+    showToast('⚠️ Completa todos los campos');
+    return;
+  }
+
+  const btn = document.getElementById('btn-guardar');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fecha, item, tipo, valor })
+    });
+
+    gastos.push({ fecha, item, tipo, valor });
+    showToast('✅ Gasto guardado');
+    document.getElementById('f-item').value = '';
+    document.getElementById('f-valor').value = '';
+    document.getElementById('f-tipo').value = '';
+  } catch(e) {
+    showToast('❌ Error al guardar');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Guardar gasto';
+}
+
+// Init
+const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const now = new Date();
+document.getElementById('currentMonth').textContent = meses[now.getMonth()] + ' ' + now.getFullYear();
+
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('f-fecha').value = today;
+
+cargarDatos();
+</script>
+</body>
+</html>
