@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mis Gastos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  :root {
+    --bg: #F5F3EE; --surface: #FFFFFF; --surface2: #EEEBE4;
+    --text: #1A1916; --text2: #6B6860; --text3: #A8A59E;
+    --accent: #185FA5; --danger: #A32D2D; --success: #3B6D11; --warning: #BA7517;
+    --border: rgba(0,0,0,0.08); --radius: 14px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 430px; margin: 0 auto; padding-bottom: 90px; }
+  .header { background: var(--surface); padding: 20px 20px 0; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .app-title { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; }
+  .period-label { font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; cursor: pointer; background: var(--surface2); padding: 4px 8px; border-radius: 6px; }
+  .tabs { display: flex; }
+  .tab { flex: 1; text-align: center; padding: 10px 0; font-size: 13px; font-weight: 500; color: var(--text3); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .metric { background: var(--surface); border-radius: var(--radius); padding: 14px; border: 1px solid var(--border); }
+  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; letter-spacing: -0.5px; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .chart-wrap { position: relative; height: 200px; }
+  .cat-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .cat-row:last-child { border-bottom: none; }
+  .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .cat-name { flex: 1; font-size: 14px; }
+  .cat-budget { font-size: 11px; color: var(--text3); }
+  .cat-bar-wrap { width: 60px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .cat-bar { height: 100%; border-radius: 2px; }
+  .cat-val { font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text2); min-width: 56px; text-align: right; }
+  .progress-wrap { background: var(--surface2); border-radius: 6px; height: 8px; overflow: hidden; margin-top: 8px; }
+  .progress-bar { height: 100%; border-radius: 6px; transition: width 0.5s; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: block; }
+  input, select { width: 100%; padding: 12px 14px; font-size: 15px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+  .btn-save { width: 100%; padding: 15px; background: var(--accent); color: white; font-size: 16px; font-weight: 600; font-family: 'DM Sans', sans-serif; border: none; border-radius: var(--radius); cursor: pointer; transition: opacity 0.15s, transform 0.1s; margin-top: 8px; }
+  .btn-save:active { opacity: 0.85; transform: scale(0.98); }
+  .btn-save:disabled { opacity: 0.5; }
+  .btn-secondary { width: 100%; padding: 12px; background: transparent; color: var(--accent); font-size: 14px; font-weight: 500; font-family: 'DM Sans', sans-serif; border: 1px solid var(--accent); border-radius: var(--radius); cursor: pointer; margin-top: 8px; }
+  .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 100; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .txn-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .txn-item:last-child { border-bottom: none; }
+  .txn-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .txn-info { flex: 1; min-width: 0; }
+  .txn-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .txn-meta { font-size: 12px; color: var(--text3); }
+  .txn-val { font-size: 14px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--danger); flex-shrink: 0; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 14px; }
+  .config-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .config-row:last-child { border-bottom: none; }
+  .config-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .config-name { flex: 1; font-size: 14px; font-weight: 500; }
+  .config-input { width: 110px; padding: 6px 10px; font-size: 13px; font-family: 'DM Mono', monospace; border: 1px solid var(--border); border-radius: 6px; text-align: right; }
+  .period-banner { background: var(--accent); color: white; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .section-divider { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 10px; }
+  .delete-btn { background: none; border: none; color: var(--danger); font-size: 18px; cursor: pointer; padding: 0 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <span class="app-title">Mis Gastos</span>
+    <span class="period-label" id="periodLabel" onclick="showPage('config')">Período ›</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showPage('dashboard')">Dashboard</div>
+    <div class="tab" onclick="showPage('agregar')">Agregar</div>
+    <div class="tab" onclick="showPage('historial')">Historial</div>
+    <div class="tab" onclick="showPage('config')">Config</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div style="height:16px"></div>
+  <div class="metrics-grid">
+    <div class="metric">
+      <div class="metric-label">Gastado</div>
+      <div class="metric-value" id="m-total" style="color:var(--danger)">$0</div>
+      <div class="metric-sub" id="m-txns">0 transacciones</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Disponible</div>
+      <div class="metric-value" id="m-disponible">$0</div>
+      <div class="metric-sub" id="m-presupuesto-total">de $0</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Promedio diario</div>
+      <div class="metric-value" id="m-daily" style="color:var(--warning)">$0</div>
+      <div class="metric-sub" id="m-projected"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Ahorro estimado</div>
+      <div class="metric-value" id="m-ahorro">$0</div>
+      <div class="metric-sub">meta: $2.000.000</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Progreso del período</div>
+    <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--text2); margin-bottom:6px;">
+      <span id="prog-label">0% del presupuesto</span>
+      <span id="prog-days"></span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="prog-bar" style="width:0%; background:var(--success)"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Gasto por día</div>
+    <div class="chart-wrap"><canvas id="dayChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Por categoría</div>
+    <div id="cat-list"></div>
+  </div>
+</div>
+
+<!-- AGREGAR -->
+<div class="page" id="page-agregar">
+  <div style="height:16px"></div>
+  <div class="card">
+    <div class="card-title">Nuevo gasto</div>
+    <div class="form-group">
+      <label class="form-label">Fecha</label>
+      <input type="date" id="f-fecha">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      <input type="text" id="f-item" placeholder="Ej: Almuerzo, Uber, Rappi...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Categoría</label>
+      <select id="f-tipo"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor (COP)</label>
+      <input type="number" id="f-valor" placeholder="0" inputmode="numeric">
+    </div>
+    <button class="btn-save" onclick="guardarGasto()" id="btn-guardar">Guardar gasto</button>
+  </div>
+</div>
+
+<!-- HISTORIAL -->
+<div class="page" id="page-historial">
+  <div style="height:16px"></div>
+  <div class="card">
+    <div class="card-title">Últimas transacciones</div>
+    <div id="txn-list"></div>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div class="page" id="page-config">
+  <div style="height:16px"></div>
+
+  <div class="card">
+    <div class="card-title">Fecha de inicio del período</div>
+    <p style="font-size:13px; color:var(--text2); margin-bottom:12px;">El día en que recibes tu salario. El dashboard mostrará gastos desde esa fecha hasta hoy.</p>
+    <div class="form-group">
+      <label class="form-label">Fecha de inicio</label>
+      <input type="date" id="c-fecha-inicio">
+    </div>
+    <button class="btn-save" onclick="guardarFechaInicio()">Guardar fecha</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Ingreso neto mensual</div>
+    <div class="form-group" style="margin-bottom:8px;">
+      <input type="number" id="c-ingreso" placeholder="5500000" inputmode="numeric">
+    </div>
+    <button class="btn-save" onclick="guardarIngreso()">Guardar ingreso</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Presupuesto por categoría</div>
+    <p style="font-size:13px; color:var(--text2); margin-bottom:14px;">Ajusta cuánto quieres gastar en cada categoría. El total define tu presupuesto del período.</p>
+    <div id="config-cat-list"></div>
+    <div class="section-divider">Agregar categoría</div>
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+      <input type="text" id="c-new-cat-name" placeholder="Nombre" style="flex:1;">
+      <input type="text" id="c-new-cat-icon" placeholder="🏷️" style="width:56px; text-align:center;">
+    </div>
+    <input type="number" id="c-new-cat-budget" placeholder="Presupuesto (COP)" inputmode="numeric" style="margin-bottom:8px;">
+    <button class="btn-secondary" onclick="agregarCategoria()">+ Agregar categoría</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyI0edklWC0--Q8RSVqBtDj7GEOAtZkwaRCCfpG0gqj2uKCB-X-_9zjLTBFx584kQos/exec';
+const META_AHORRO = 2000000;
+const COLORS = ['#185FA5','#3B6D11','#888780','#D85A30','#BA7517','#A32D2D','#0F6E56','#993C1D','#854F0B'];
+
+let gastos = [];
+let dayChartInstance = null;
+
+function getConfig() {
+  const def = {
+    fechaInicio: new Date().toISOString().split('T')[0],
+    ingresoNeto: 5500000,
+    categorias: [
+      { nombre: 'Fijos', icon: '🏠', color: '#185FA5', presupuesto: 1280000 },
+      { nombre: 'Alimentación', icon: '🍽️', color: '#3B6D11', presupuesto: 700000 },
+      { nombre: 'Transporte', icon: '🚌', color: '#888780', presupuesto: 100000 },
+      { nombre: 'Salidas', icon: '🎉', color: '#D85A30', presupuesto: 800000 },
+      { nombre: 'Imprevistos', icon: '⚡', color: '#BA7517', presupuesto: 300000 },
+      { nombre: 'Ahorro', icon: '💰', color: '#185FA5', presupuesto: 2000000 },
+    ]
+  };
+  try {
+    const saved = localStorage.getItem('gastos_config');
+    return saved ? Object.assign(def, JSON.parse(saved)) : def;
+  } catch { return def; }
+}
+
+function saveConfig(cfg) {
+  localStorage.setItem('gastos_config', JSON.stringify(cfg));
+}
+
+function getCatConfig(nombre) {
+  const cfg = getConfig();
+  return cfg.categorias.find(c => c.nombre === nombre) || { color: '#888', icon: '•', presupuesto: 0 };
+}
+
+function getPresupuestoTotal() {
+  const cfg = getConfig();
+  return cfg.categorias.filter(c => c.nombre !== 'Ahorro').reduce((s, c) => s + (c.presupuesto || 0), 0);
+}
+
+function fmt(n) {
+  return '$' + Math.round(n).toLocaleString('es-CO');
+}
+
+function parseDate(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m1) return new Date(+m1[3], +m1[2]-1, +m1[1]);
+  const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m2) return new Date(+m2[1], +m2[2]-1, +m2[3]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function getPeriodGastos() {
+  const cfg = getConfig();
+  const inicio = parseDate(cfg.fechaInicio);
+  if (!inicio) return [];
+  const hoy = new Date(); hoy.setHours(23,59,59,999);
+  return gastos.filter(g => g.dateObj && g.dateObj >= inicio && g.dateObj <= hoy && g.tipo !== 'Ahorro');
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const pages = ['dashboard','agregar','historial','config'];
+  const idx = pages.indexOf(name);
+  document.querySelectorAll('.tab')[idx]?.classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'historial') renderHistorial();
+  if (name === 'config') renderConfig();
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+async function cargarDatos() {
+  try {
+    const res = await fetch(API_URL);
+    const raw = await res.json();
+    gastos = [];
+    for (let i = 1; i < raw.length; i++) {
+      const [fecha, item, tipo, valor] = raw[i];
+      if (!fecha || !valor) continue;
+      const d = parseDate(fecha);
+      if (!d) continue;
+      gastos.push({
+        fecha: String(fecha),
+        dateObj: d,
+        item: String(item),
+        tipo: String(tipo),
+        valor: parseFloat(String(valor).replace(/\./g,'').replace(',','.')) || 0
+      });
+    }
+    renderDashboard();
+    renderHistorial();
+    updatePeriodLabel();
+  } catch(e) {
+    showToast('Error al cargar datos');
+  }
+}
+
+function updatePeriodLabel() {
+  const cfg = getConfig();
+  const d = parseDate(cfg.fechaInicio);
+  if (!d) return;
+  const label = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) + ' → hoy';
+  document.getElementById('periodLabel').textContent = label;
+}
+
+function renderDashboard() {
+  const mg = getPeriodGastos();
+  const cfg = getConfig();
+  const total = mg.reduce((s, g) => s + g.valor, 0);
+  const inicio = parseDate(cfg.fechaInicio);
+  const hoy = new Date();
+  const diasTranscurridos = Math.max(1, Math.round((hoy - inicio) / 86400000) + 1);
+  const promDiario = total / diasTranscurridos;
+  const diasTotales = 30;
+  const proyectado = promDiario * diasTotales;
+  const presupuesto = getPresupuestoTotal();
+  const disponible = presupuesto - total;
+  const ahorroEst = cfg.ingresoNeto - total - presupuesto + getPresupuestoTotal();
+  const ahorroReal = cfg.ingresoNeto - total;
+  const pct = Math.min(100, Math.round((total / presupuesto) * 100));
+
+  document.getElementById('m-total').textContent = fmt(total);
+  document.getElementById('m-txns').textContent = mg.length + ' transacciones';
+  document.getElementById('m-presupuesto-total').textContent = 'de ' + fmt(presupuesto);
+
+  const dispEl = document.getElementById('m-disponible');
+  dispEl.textContent = fmt(disponible);
+  dispEl.style.color = disponible < 0 ? 'var(--danger)' : disponible < 300000 ? 'var(--warning)' : 'var(--success)';
+
+  document.getElementById('m-daily').textContent = fmt(promDiario);
+  document.getElementById('m-projected').textContent = 'proyección: ' + fmt(proyectado);
+
+  const ahorroEl = document.getElementById('m-ahorro');
+  const ahorroMostrar = Math.max(0, ahorroReal);
+  ahorroEl.textContent = fmt(ahorroMostrar);
+  ahorroEl.style.color = ahorroReal >= META_AHORRO ? 'var(--success)' : ahorroReal > 0 ? 'var(--warning)' : 'var(--danger)';
+
+  const bar = document.getElementById('prog-bar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)';
+  document.getElementById('prog-label').textContent = pct + '% del presupuesto';
+  document.getElementById('prog-days').textContent = 'Día ' + diasTranscurridos + ' del período';
+
+  renderDayChart(mg, inicio);
+  renderCatList(mg);
+}
+
+function renderDayChart(mg, inicio) {
+  const hoy = new Date();
+  const labels = [], data = [], byDay = {};
+  mg.forEach(g => {
+    const key = g.dateObj.toISOString().split('T')[0];
+    byDay[key] = (byDay[key] || 0) + g.valor;
+  });
+  const cur = new Date(inicio);
+  while (cur <= hoy) {
+    const key = cur.toISOString().split('T')[0];
+    labels.push(cur.getDate() + '/' + (cur.getMonth()+1));
+    data.push(byDay[key] || 0);
+    cur.setDate(cur.getDate() + 1);
+  }
+  const colors = data.map(v => v > 500000 ? '#A32D2D' : v > 200000 ? '#BA7517' : '#185FA5');
+  if (dayChartInstance) dayChartInstance.destroy();
+  const ctx = document.getElementById('dayChart').getContext('2d');
+  dayChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { ticks: { font: { size: 9 }, maxRotation: 45 }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderCatList(mg) {
+  const cfg = getConfig();
+  const byCat = {};
+  mg.forEach(g => { byCat[g.tipo] = (byCat[g.tipo] || 0) + g.valor; });
+  const cats = cfg.categorias.filter(c => c.nombre !== 'Ahorro');
+  const el = document.getElementById('cat-list');
+  if (!cats.length) { el.innerHTML = '<div class="empty-state">Sin categorías</div>'; return; }
+  const maxVal = Math.max(...cats.map(c => byCat[c.nombre] || 0), 1);
+  el.innerHTML = cats.map(cat => {
+    const val = byCat[cat.nombre] || 0;
+    const pct = Math.round((val / maxVal) * 100);
+    const overBudget = cat.presupuesto > 0 && val > cat.presupuesto;
+    return `<div class="cat-row">
+      <div class="cat-dot" style="background:${cat.color}"></div>
+      <div style="flex:1; min-width:0;">
+        <div class="cat-name">${cat.icon} ${cat.nombre}</div>
+        ${cat.presupuesto > 0 ? `<div class="cat-budget">${overBudget ? '⚠️ ' : ''}${fmt(val)} / ${fmt(cat.presupuesto)}</div>` : ''}
+      </div>
+      <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%; background:${overBudget ? 'var(--danger)' : cat.color}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderHistorial() {
+  const cfg = getConfig();
+  const el = document.getElementById('txn-list');
+  const recientes = [...gastos].sort((a,b) => b.dateObj - a.dateObj).slice(0, 60);
+  if (!recientes.length) { el.innerHTML = '<div class="empty-state">Sin transacciones registradas</div>'; return; }
+  el.innerHTML = recientes.map(g => {
+    const cat = getCatConfig(g.tipo);
+    const fechaStr = g.dateObj.toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+    return `<div class="txn-item">
+      <div class="txn-icon" style="background:${cat.color}22; color:${cat.color}">${cat.icon}</div>
+      <div class="txn-info">
+        <div class="txn-name">${g.item}</div>
+        <div class="txn-meta">${fechaStr} · ${g.tipo}</div>
+      </div>
+      <div class="txn-val">${fmt(g.valor)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderConfig() {
+  const cfg = getConfig();
+  document.getElementById('c-fecha-inicio').value = cfg.fechaInicio;
+  document.getElementById('c-ingreso').value = cfg.ingresoNeto;
+  const el = document.getElementById('config-cat-list');
+  el.innerHTML = cfg.categorias.map((cat, i) => `
+    <div class="config-row">
+      <div class="config-icon" style="background:${cat.color}22; color:${cat.color}">${cat.icon}</div>
+      <div class="config-name">${cat.nombre}</div>
+      <input class="config-input" type="number" value="${cat.presupuesto}" onchange="actualizarPresupuesto(${i}, this.value)" inputmode="numeric">
+      ${cat.nombre !== 'Ahorro' && cat.nombre !== 'Fijos' ? `<button class="delete-btn" onclick="eliminarCategoria(${i})">×</button>` : ''}
+    </div>
+  `).join('');
+  populateCatSelect();
+}
+
+function populateCatSelect() {
+  const cfg = getConfig();
+  const sel = document.getElementById('f-tipo');
+  sel.innerHTML = '<option value="">Selecciona una categoría</option>' +
+    cfg.categorias.map(c => `<option value="${c.nombre}">${c.icon} ${c.nombre}</option>`).join('');
+}
+
+function guardarFechaInicio() {
+  const fecha = document.getElementById('c-fecha-inicio').value;
+  if (!fecha) { showToast('⚠️ Selecciona una fecha'); return; }
+  const cfg = getConfig();
+  cfg.fechaInicio = fecha;
+  saveConfig(cfg);
+  updatePeriodLabel();
+  showToast('✅ Fecha guardada');
+  renderDashboard();
+}
+
+function guardarIngreso() {
+  const val = parseFloat(document.getElementById('c-ingreso').value);
+  if (!val || val <= 0) { showToast('⚠️ Ingresa un valor válido'); return; }
+  const cfg = getConfig();
+  cfg.ingresoNeto = val;
+  saveConfig(cfg);
+  showToast('✅ Ingreso guardado');
+  renderDashboard();
+}
+
+function actualizarPresupuesto(idx, val) {
+  const cfg = getConfig();
+  cfg.categorias[idx].presupuesto = parseFloat(val) || 0;
+  saveConfig(cfg);
+  renderDashboard();
+}
+
+function agregarCategoria() {
+  const nombre = document.getElementById('c-new-cat-name').value.trim();
+  const icon = document.getElementById('c-new-cat-icon').value.trim() || '📌';
+  const presupuesto = parseFloat(document.getElementById('c-new-cat-budget').value) || 0;
+  if (!nombre) { showToast('⚠️ Escribe un nombre'); return; }
+  const cfg = getConfig();
+  if (cfg.categorias.find(c => c.nombre === nombre)) { showToast('Ya existe esa categoría'); return; }
+  const color = COLORS[cfg.categorias.length % COLORS.length];
+  cfg.categorias.push({ nombre, icon, color, presupuesto });
+  saveConfig(cfg);
+  document.getElementById('c-new-cat-name').value = '';
+  document.getElementById('c-new-cat-icon').value = '';
+  document.getElementById('c-new-cat-budget').value = '';
+  renderConfig();
+  showToast('✅ Categoría agregada');
+}
+
+function eliminarCategoria(idx) {
+  const cfg = getConfig();
+  cfg.categorias.splice(idx, 1);
+  saveConfig(cfg);
+  renderConfig();
+  showToast('Categoría eliminada');
+}
+
+async function guardarGasto() {
+  const fecha = document.getElementById('f-fecha').value;
+  const item = document.getElementById('f-item').value.trim();
+  const tipo = document.getElementById('f-tipo').value;
+  const valor = parseFloat(document.getElementById('f-valor').value);
+  if (!fecha || !item || !tipo || !valor || valor <= 0) { showToast('⚠️ Completa todos los campos'); return; }
+  const btn = document.getElementById('btn-guardar');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    await fetch(API_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fecha, item, tipo, valor })
+    });
+    const d = parseDate(fecha);
+    gastos.push({ fecha, dateObj: d, item, tipo, valor });
+    showToast('✅ Gasto guardado');
+    document.getElementById('f-item').value = '';
+    document.getElementById('f-valor').value = '';
+    document.getElementById('f-tipo').value = '';
+  } catch(e) { showToast('❌ Error al guardar'); }
+  btn.disabled = false; btn.textContent = 'Guardar gasto';
+}
+
+document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
+populateCatSelect();
+updatePeriodLabel();
+cargarDatos();
+</script>
+</body>
+</html>
